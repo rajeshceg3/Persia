@@ -4,8 +4,8 @@
     --panel-background-solid: #F3ECE1; /* Solid Off-White */
     --panel-background-blur: rgba(243, 236, 225, 0.7); /* Semi-transparent Parchment */
     --text-primary: #4F4A45; /* Dark, Soft Brown */
-    --text-secondary: #A9A299; /* Muted Brown */
-    --primary-accent: #D4A59A; /* Dusty Rose/Terracotta */
+    --text-secondary: #867d74; /* Muted Brown - ACC-002: Increased contrast */
+    --primary-accent: #9D7263; /* Dusty Rose/Terracotta - ACC-003: Increased contrast */
     --border-color: rgba(79, 74, 69, 0.15);
 
     /* New Typography */
