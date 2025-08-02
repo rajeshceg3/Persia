@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     console.warn(`Skipping location with malformed data:`, loc.name || 'Unnamed');
                     return;
                 }
-                const marker = L.marker(loc.coords, { icon: createCustomIcon() });
+                const marker = L.marker(loc.coords, { icon: createCustomIcon(), alt: loc.name }); // ACC-001: Add alt text for screen readers
                 marker.on('click', () => {
                     if (isMapAnimating) return;
                     showInfoPanel(loc);
@@ -120,6 +120,7 @@ document.addEventListener('DOMContentLoaded', function () {
         button.textContent = historyData[eraKey].name;
         button.dataset.era = eraKey;
         button.addEventListener('click', () => {
+            if (isMapAnimating) return; // UX-003 ADDED: Prevent era change during map animation
             currentEra = eraKey;
             displayEra(eraKey);
         });
@@ -127,6 +128,13 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     closePanelBtn.addEventListener('click', hideInfoPanel);
+
+    // Close panel with Escape key - UX-002 ADDED
+    document.addEventListener('keydown', (e) => {
+        if (e.key === "Escape" && infoPanel.classList.contains('visible')) {
+            hideInfoPanel();
+        }
+    });
 
     // Listen for map animation end to release lock - UX-001 FIXED
     map.on('moveend', () => {
