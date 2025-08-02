@@ -1,0 +1,297 @@
+:root {
+    /* New Pastel Color Palette */
+    --background-color: #FDF8F0; /* Parchment/Sand */
+    --panel-background-solid: #F3ECE1; /* Solid Off-White */
+    --panel-background-blur: rgba(243, 236, 225, 0.7); /* Semi-transparent Parchment */
+    --text-primary: #4F4A45; /* Dark, Soft Brown */
+    --text-secondary: #A9A299; /* Muted Brown */
+    --primary-accent: #D4A59A; /* Dusty Rose/Terracotta */
+    --border-color: rgba(79, 74, 69, 0.15);
+
+    /* New Typography */
+    --font-family-headings: 'Playfair Display', serif;
+    --font-family-body: 'Inter', sans-serif;
+
+    /* Animation */
+    --transition-speed: 0.6s;
+    --transition-timing: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+@keyframes breathe {
+    0%, 100% {
+        transform: scale(0.95);
+        box-shadow: 0 2px 10px rgba(79, 74, 69, 0.2);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 4px 15px rgba(79, 74, 69, 0.3);
+    }
+}
+
+@keyframes fadeInSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    overflow: hidden; background-color: var(--background-color);
+    font-family: var(--font-family-body);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+#app-container {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: flex; flex-direction: column; pointer-events: none;
+}
+
+.app-header {
+    padding: 30px 50px;
+    text-align: left;
+    z-index: 1000;
+}
+.app-header h1, .app-header p {
+    animation: fadeInSlideUp 1s var(--transition-timing) forwards;
+    opacity: 0;
+}
+.app-header p {
+    animation-delay: 0.15s;
+}
+.app-header h1 {
+    font-family: var(--font-family-headings);
+    font-size: 32px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: 0.5px;
+}
+.app-header p {
+    font-size: 16px;
+    margin: 4px 0 0 0;
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+#map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+.leaflet-tile-pane { filter: grayscale(0.8) contrast(0.9) brightness(1.1) sepia(0.2); }
+
+.location-marker {
+    width: 20px; height: 20px;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.4s ease;
+    animation: breathe 3s infinite ease-in-out;
+}
+.location-marker::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 12px; height: 12px;
+    background-color: var(--primary-accent);
+    border-radius: 3px;
+    transform: translate(-50%, -50%) rotate(45deg);
+    box-shadow: 0 0 1px rgba(255,255,255,0.5);
+}
+.location-marker::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 6px; height: 6px;
+    background-color: var(--background-color);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+.location-marker:hover {
+    transform: scale(1.2);
+    animation-play-state: paused;
+}
+
+.location-marker.marker-fade-out {
+    opacity: 0;
+    transform: scale(0.5);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.leaflet-control-container { display: none; }
+
+#timeline {
+    position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+    z-index: 1000;
+    background: var(--panel-background-solid);
+    backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 10px;
+    display: flex;
+    gap: 8px;
+    pointer-events: all;
+    box-shadow: 0 10px 30px rgba(79, 74, 69, 0.1);
+    animation: fadeInSlideUp 1s 0.3s var(--transition-timing) forwards;
+    opacity: 0;
+}
+.no-blur-support #timeline { background: var(--panel-background-solid); backdrop-filter: none; }
+
+.era-button {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-family: var(--font-family-body);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 12px 20px;
+    cursor: pointer;
+    border-radius: 12px;
+    transition: all 0.4s ease;
+    position: relative;
+}
+.era-button::after {
+    content: '';
+    position: absolute;
+    bottom: 6px;
+    left: 20px;
+    right: 20px;
+    height: 2px;
+    background-color: var(--primary-accent);
+    transform: scaleX(0);
+    transition: transform 0.4s var(--transition-timing);
+}
+.era-button.active {
+    color: var(--text-primary);
+}
+.era-button.active::after {
+    transform: scaleX(1);
+}
+.era-button:not(.active):hover {
+    color: var(--text-primary);
+}
+
+#info-panel {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 45vh;
+    background: var(--panel-background-solid);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border-color);
+    transform: translateY(100%);
+    transition: transform var(--transition-speed) var(--transition-timing);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: all;
+    overflow: hidden;
+}
+.no-blur-support #info-panel { background: var(--panel-background-solid); backdrop-filter: none; }
+#info-panel.visible { transform: translateY(0); }
+
+.panel-content {
+    display: flex;
+    width: 100%;
+    max-width: 900px;
+    height: 100%;
+    padding: 50px;
+    box-sizing: border-box;
+}
+
+.panel-image {
+    width: 40%; height: 100%;
+    object-fit: cover;
+    border-radius: 16px;
+    margin-right: 50px;
+    background-color: #EAE2D6; /* Placeholder color */
+    box-shadow: 0 10px 30px rgba(79, 74, 69, 0.1);
+    transform: scale(1.05); /* Slightly zoomed in to allow for panning effect */
+    transition: transform 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.panel-image:hover {
+    transform: scale(1);
+}
+
+/* Staggered animation for panel content */
+#info-panel.visible .panel-image,
+#info-panel.visible .panel-text > * {
+    animation: fadeInSlideUp 0.8s var(--transition-timing) forwards;
+    opacity: 0; /* Start hidden */
+}
+
+#info-panel.visible .panel-image { animation-delay: 0.2s; }
+#info-panel.visible .panel-text h2 { animation-delay: 0.3s; }
+#info-panel.visible .panel-text h3 { animation-delay: 0.4s; }
+#info-panel.visible .panel-text p { animation-delay: 0.5s; }
+
+.panel-text {
+    flex: 1;
+    overflow-y: auto;
+    color: var(--text-primary);
+}
+.panel-text::-webkit-scrollbar { display: none; }
+.panel-text { -ms-overflow-style: none; scrollbar-width: none; }
+
+.panel-text h2 {
+    font-family: var(--font-family-headings);
+    font-size: 36px;
+    font-weight: 600;
+    margin-top: 0;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+.panel-text h3 {
+    font-family: var(--font-family-body);
+    font-size: 18px;
+    font-weight: 500;
+    margin-top: 0;
+    margin-bottom: 24px;
+    color: var(--primary-accent);
+}
+.panel-text p {
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+}
+
+#close-panel {
+    position: absolute; top: 20px; right: 25px;
+    width: 38px; height: 38px;
+    background: rgba(79, 74, 69, 0.08);
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s ease, transform 0.4s ease;
+}
+#close-panel:hover {
+    background: rgba(79, 74, 69, 0.15);
+    transform: rotate(90deg);
+}
+#close-panel svg {
+    width: 16px; height: 16px;
+    stroke: var(--text-secondary);
+    stroke-width: 2px;
+}
+
+@media (max-width: 768px) {
+    .app-header { padding: 20px; }
+    .app-header h1 { font-size: 24px; }
+    .app-header p { font-size: 14px; }
+
+    #timeline { bottom: 20px; }
+
+    #info-panel { height: 65vh; }
+    .panel-content { flex-direction: column; padding: 20px; padding-top: 60px; }
+    .panel-image {
+        width: 100%;
+        height: 200px;
+        margin-right: 0;
+        margin-bottom: 25px;
+    }
+    .panel-text h2 { font-size: 28px; }
+    .panel-text h3 { font-size: 16px; margin-bottom: 15px; }
+    .panel-text p { font-size: 15px; }
+}
