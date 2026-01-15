@@ -2,44 +2,63 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Chronoscape: Persia [v1.1 - Hardened]</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Chronoscape: Persia [v2.0 - Redesigned]</title>
+    <meta name="description" content="A premium interactive journey through Persian history.">
 
     <!-- Leaflet JS & CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
 
-    <!-- Google Fonts -->
+    <!-- Google Fonts: Adding more weights and a modern serif -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800&family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 
     <!-- Custom Stylesheet -->
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="no-blur-support"> <!-- Assume no support initially -->
+<body class="no-blur-support">
 
     <div id="map"></div>
-    <div id="app-container">
+
+    <!-- UI Overlay Layer -->
+    <div id="ui-layer">
         <header class="app-header">
-            <h1>Chronoscape</h1>
-            <p>A Journey Through Persian History</p>
+            <div class="header-content">
+                <h1>Chronoscape</h1>
+                <div class="subtitle-wrapper">
+                    <span class="separator"></span>
+                    <p>Persia</p>
+                    <span class="separator"></span>
+                </div>
+            </div>
         </header>
-        <div id="timeline"></div>
+
+        <nav id="timeline" aria-label="Historical Eras">
+            <!-- Buttons injected by JS -->
+        </nav>
     </div>
-    <div id="info-panel">
-        <button id="close-panel" aria-label="Close panel">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M18 6L6 18" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 6L18 18" stroke-linecap="round" stroke-linejoin="round"/></svg>
+
+    <aside id="info-panel" aria-hidden="true">
+        <div class="panel-handle-mobile"></div>
+        <button id="close-panel" aria-label="Close details">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
         <div class="panel-content">
-            <img class="panel-image" id="panel-img" src="" alt="Historical site image">
+            <div class="image-wrapper">
+                <img class="panel-image" id="panel-img" src="" alt="">
+                <div class="image-overlay"></div>
+            </div>
             <div class="panel-text">
+                <span class="panel-overline" id="panel-overline">Historical Site</span>
                 <h2 id="panel-title"></h2>
                 <h3 id="panel-subtitle"></h3>
+                <div class="panel-divider"></div>
                 <p id="panel-desc"></p>
             </div>
         </div>
-    </div>
+    </aside>
 
     <!-- Custom Script -->
     <script src="script.js"></script>
