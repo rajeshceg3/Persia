@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let markerLayer = L.layerGroup().addTo(map);
     let currentEra = Object.keys(historyData)[0];
     let isMapAnimating = false;
+    let markerTimeouts = [];
 
     // --- Helpers ---
 
@@ -85,8 +86,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // Create marker with custom HTML structure for pulsing effect
     const createCustomIcon = () => L.divIcon({
         className: 'location-marker',
-        html: '<div class="marker-pulse"></div><div class="marker-ring"></div>',
-        iconSize: [20, 20]
+        html: '<div class="marker-pulse"></div><div class="marker-inner"></div>',
+        iconSize: [44, 44],
+        iconAnchor: [22, 22]
     });
 
     // Map flyTo with layout awareness
@@ -115,15 +117,31 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Core Logic ---
 
     const displayEra = (eraKey) => {
+        // Clear pending marker animations
+        markerTimeouts.forEach(id => clearTimeout(id));
+        markerTimeouts = [];
+
+        // Exit animation for current markers
         markerLayer.eachLayer(marker => {
-            if (marker.getElement()) {
-                marker.getElement().style.opacity = '0';
-                marker.getElement().style.transform = 'scale(0.5)';
+            const el = marker.getElement();
+            if (el) {
+                el.style.transition = 'opacity 0.3s ease';
+                el.style.opacity = '0';
+                const children = el.querySelectorAll('div');
+                children.forEach(c => {
+                    c.style.transition = 'transform 0.3s ease';
+                    c.style.transform = 'translate(-50%, -50%) scale(0)';
+                });
             }
         });
 
+        // Update timeline
         document.querySelectorAll('.era-button').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.era === eraKey);
+            const isActive = btn.dataset.era === eraKey;
+            btn.classList.toggle('active', isActive);
+            if (isActive) {
+                btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }
         });
 
         setTimeout(() => {
@@ -131,19 +149,41 @@ document.addEventListener('DOMContentLoaded', function () {
             const eraData = historyData[eraKey];
             if (!eraData) return;
 
-            eraData.locations.forEach(loc => {
-                const marker = L.marker(loc.coords, {
-                    icon: createCustomIcon(),
-                    alt: loc.name,
-                    title: loc.name
-                });
+            eraData.locations.forEach((loc, index) => {
+                const timeoutId = setTimeout(() => {
+                    const marker = L.marker(loc.coords, {
+                        icon: createCustomIcon(),
+                        alt: loc.name,
+                        title: loc.name
+                    });
 
-                marker.on('click', () => {
-                    if (isMapAnimating) return;
-                    showInfoPanel(loc, eraData.name);
-                });
+                    marker.on('click', () => {
+                        if (isMapAnimating) return;
+                        showInfoPanel(loc, eraData.name);
+                    });
 
-                markerLayer.addLayer(marker);
+                    markerLayer.addLayer(marker);
+
+                    // Entry Animation
+                    const el = marker.getElement();
+                    if (el) {
+                        el.style.opacity = '0';
+                        const children = el.querySelectorAll('div');
+                        children.forEach(c => {
+                             c.style.transform = 'translate(-50%, -50%) scale(0)';
+                             c.style.transition = 'transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                        });
+
+                        requestAnimationFrame(() => {
+                            el.style.opacity = '1';
+                            el.style.transition = 'opacity 0.5s ease';
+                            children.forEach(c => {
+                                c.style.transform = 'translate(-50%, -50%) scale(1)';
+                            });
+                        });
+                    }
+                }, index * 100);
+                markerTimeouts.push(timeoutId);
             });
 
         }, 300);
