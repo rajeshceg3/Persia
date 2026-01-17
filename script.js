@@ -86,9 +86,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // Create marker with custom HTML structure for pulsing effect
     const createCustomIcon = () => L.divIcon({
         className: 'location-marker',
-        html: '<div class="marker-pulse"></div><div class="marker-inner"></div>',
-        iconSize: [44, 44],
-        iconAnchor: [22, 22]
+        html: '<div class="marker-pulse"></div><div class="marker-ring"></div><div class="marker-inner"></div>',
+        iconSize: [80, 80],
+        iconAnchor: [40, 40]
     });
 
     // Map flyTo with layout awareness
@@ -103,12 +103,11 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         if (isDesktop) {
-            // Offset for right panel (approx 450px)
-            // Leaflet padding: [topLeft, bottomRight] relative to map container
-            options.paddingBottomRight = [450, 0];
+            // Offset for right panel (approx 500px + padding)
+            options.paddingBottomRight = [520, 0];
         } else {
-            // Offset for bottom sheet (approx 300px or 40% height)
-            options.paddingBottomRight = [0, 300];
+            // Offset for bottom sheet (dynamic based on viewport)
+            options.paddingBottomRight = [0, window.innerHeight * 0.45];
         }
 
         map.flyTo(coords, targetZoom, options);
@@ -140,7 +139,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const isActive = btn.dataset.era === eraKey;
             btn.classList.toggle('active', isActive);
             if (isActive) {
+                btn.setAttribute('aria-current', 'time');
                 btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            } else {
+                btn.removeAttribute('aria-current');
             }
         });
 
@@ -220,7 +222,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // --- Init Listeners ---
 
-    Object.keys(historyData).forEach(eraKey => {
+    const eraKeys = Object.keys(historyData);
+    eraKeys.forEach(eraKey => {
         const button = document.createElement('button');
         button.className = 'era-button';
         button.textContent = historyData[eraKey].name;
@@ -236,8 +239,27 @@ document.addEventListener('DOMContentLoaded', function () {
     closePanelBtn.addEventListener('click', hideInfoPanel);
 
     document.addEventListener('keydown', (e) => {
-        if (e.key === "Escape" && infoPanel.classList.contains('visible')) {
+        if (infoPanel.classList.contains('visible') && e.key === "Escape") {
             hideInfoPanel();
+            return;
+        }
+
+        // Timeline Navigation with Arrows
+        const currentIndex = eraKeys.indexOf(currentEra);
+        if (e.key === "ArrowRight") {
+            const nextIndex = (currentIndex + 1) % eraKeys.length;
+            const nextEra = eraKeys[nextIndex];
+            if (!isMapAnimating) {
+                currentEra = nextEra;
+                displayEra(nextEra);
+            }
+        } else if (e.key === "ArrowLeft") {
+            const prevIndex = (currentIndex - 1 + eraKeys.length) % eraKeys.length;
+            const prevEra = eraKeys[prevIndex];
+            if (!isMapAnimating) {
+                currentEra = prevEra;
+                displayEra(prevEra);
+            }
         }
     });
 
