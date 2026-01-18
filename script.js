@@ -44,7 +44,8 @@ document.addEventListener('DOMContentLoaded', function () {
         zoom: 5,
         zoomControl: false,
         attributionControl: false,
-        zoomSnap: 0.5
+        zoomSnap: 0.1, // Smoother zooming
+        wheelPxPerZoomLevel: 120 // Smoother scroll zoom
     });
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -93,21 +94,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Map flyTo with layout awareness
     const flyToLocation = (coords) => {
-        const isDesktop = window.innerWidth > 768;
-        const targetZoom = 8;
+        // Desktop breakpoint should match CSS (1024px)
+        const isDesktop = window.innerWidth > 1024;
+        const targetZoom = 7.5; // Slightly wider context
 
         let options = {
             animate: true,
-            duration: 1.5,
-            easeLinearity: 0.25
+            duration: 1.8, // Slower, more cinematic fly
+            easeLinearity: 0.1
         };
 
         if (isDesktop) {
-            // Offset for right panel (approx 500px + padding)
-            options.paddingBottomRight = [520, 0];
+            // Offset for right panel (520px width + 32px margin)
+            // We shift the center point to the left to balance the layout
+            options.paddingBottomRight = [550, 0];
         } else {
             // Offset for bottom sheet (dynamic based on viewport)
-            options.paddingBottomRight = [0, window.innerHeight * 0.45];
+            // We shift the center point up to avoid being covered
+            options.paddingBottomRight = [0, window.innerHeight * 0.5];
         }
 
         map.flyTo(coords, targetZoom, options);
@@ -124,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function () {
         markerLayer.eachLayer(marker => {
             const el = marker.getElement();
             if (el) {
-                el.style.transition = 'opacity 0.3s ease';
+                el.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
                 el.style.opacity = '0';
                 const children = el.querySelectorAll('div');
                 children.forEach(c => {
@@ -134,34 +138,50 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        // Update timeline
+        // Update timeline UI
         document.querySelectorAll('.era-button').forEach(btn => {
             const isActive = btn.dataset.era === eraKey;
             btn.classList.toggle('active', isActive);
             if (isActive) {
                 btn.setAttribute('aria-current', 'time');
+                // Smooth center scroll
                 btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
             } else {
                 btn.removeAttribute('aria-current');
             }
         });
 
+        // Delay clearing to allow exit animation to play
         setTimeout(() => {
             markerLayer.clearLayers();
             const eraData = historyData[eraKey];
             if (!eraData) return;
+
+            // Fit bounds to all markers in the era if possible, or fly to the first one?
+            // Let's fly to the general area of the era's capital (first item) or bounds.
+            if (eraData.locations.length > 0) {
+                 // flyToLocation(eraData.locations[0].coords); // Optional: Auto-fly to capital
+            }
 
             eraData.locations.forEach((loc, index) => {
                 const timeoutId = setTimeout(() => {
                     const marker = L.marker(loc.coords, {
                         icon: createCustomIcon(),
                         alt: loc.name,
-                        title: loc.name
+                        title: loc.name,
+                        keyboard: true // Enable keyboard nav for markers
                     });
 
                     marker.on('click', () => {
-                        if (isMapAnimating) return;
+                        // if (isMapAnimating) return; // Allow interrupting
                         showInfoPanel(loc, eraData.name);
+                    });
+
+                    // Keyboard activation
+                    marker.on('keydown', (e) => {
+                         if (e.originalEvent.key === 'Enter') {
+                             showInfoPanel(loc, eraData.name);
+                         }
                     });
 
                     markerLayer.addLayer(marker);
@@ -184,21 +204,35 @@ document.addEventListener('DOMContentLoaded', function () {
                             });
                         });
                     }
-                }, index * 100);
+                }, index * 150); // Staggered entry
                 markerTimeouts.push(timeoutId);
             });
 
         }, 300);
 
+        // Don't hide panel automatically if we are just switching eras,
+        // unless the user wants that. Let's hide it to keep it clean.
         hideInfoPanel();
     };
 
     const showInfoPanel = (location, eraName) => {
         const safeImage = isValidHttpUrl(location.image) ? location.image : '';
 
+        // Blur-up / Loading State
+        panelImg.style.transition = 'none';
         panelImg.style.opacity = '0';
+        panelImg.style.transform = 'scale(1.1)';
+
+        panelImg.onload = () => {
+            // Reveal animation
+            requestAnimationFrame(() => {
+                panelImg.style.transition = 'opacity 0.8s ease, transform 1.2s cubic-bezier(0.2, 1, 0.3, 1)';
+                panelImg.style.opacity = '0.8'; // Slight transparency for mood
+                panelImg.style.transform = 'scale(1)';
+            });
+        };
+
         panelImg.src = safeImage;
-        panelImg.onload = () => { panelImg.style.opacity = '1'; }; // Smooth image load
 
         panelImg.alt = sanitizeText(location.name);
         panelTitle.textContent = sanitizeText(location.name);
@@ -211,6 +245,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         infoPanel.classList.add('visible');
+        infoPanel.setAttribute('aria-hidden', 'false');
+
+        // Focus management for accessibility
+        // setTimeout(() => closePanelBtn.focus(), 100);
 
         isMapAnimating = true;
         flyToLocation(location.coords);
@@ -218,6 +256,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const hideInfoPanel = () => {
         infoPanel.classList.remove('visible');
+        infoPanel.setAttribute('aria-hidden', 'true');
+        // Return focus to map or timeline?
     };
 
     // --- Init Listeners ---
@@ -228,8 +268,9 @@ document.addEventListener('DOMContentLoaded', function () {
         button.className = 'era-button';
         button.textContent = historyData[eraKey].name;
         button.dataset.era = eraKey;
+        button.setAttribute('role', 'tab');
+
         button.addEventListener('click', () => {
-            if (isMapAnimating) return;
             currentEra = eraKey;
             displayEra(eraKey);
         });
@@ -249,23 +290,18 @@ document.addEventListener('DOMContentLoaded', function () {
         if (e.key === "ArrowRight") {
             const nextIndex = (currentIndex + 1) % eraKeys.length;
             const nextEra = eraKeys[nextIndex];
-            if (!isMapAnimating) {
-                currentEra = nextEra;
-                displayEra(nextEra);
-            }
+            currentEra = nextEra;
+            displayEra(nextEra);
         } else if (e.key === "ArrowLeft") {
             const prevIndex = (currentIndex - 1 + eraKeys.length) % eraKeys.length;
             const prevEra = eraKeys[prevIndex];
-            if (!isMapAnimating) {
-                currentEra = prevEra;
-                displayEra(prevEra);
-            }
+            currentEra = prevEra;
+            displayEra(prevEra);
         }
     });
 
     // Close panel when clicking on map background
     map.on('click', (e) => {
-        // Only close if we clicked the map, not a marker (marker click stops propagation usually, but Leaflet handles it)
         hideInfoPanel();
     });
 
