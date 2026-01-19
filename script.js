@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     // --- Init ---
+    // Check for backdrop-support
     if (CSS.supports('backdrop-filter', 'blur(1px)') || CSS.supports('-webkit-backdrop-filter', 'blur(1px)')) {
         document.body.classList.remove('no-blur-support');
     }
@@ -44,11 +45,13 @@ document.addEventListener('DOMContentLoaded', function () {
         zoom: 5,
         zoomControl: false,
         attributionControl: false,
-        zoomSnap: 0.1, // Smoother zooming
-        wheelPxPerZoomLevel: 120 // Smoother scroll zoom
+        zoomSnap: 0.05, // Ultra-smooth zooming
+        wheelPxPerZoomLevel: 120, // Smoother scroll zoom
+        inertia: true,
+        inertiaDeceleration: 3000
     });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         maxZoom: 19,
         opacity: 1
     }).addTo(map);
@@ -61,6 +64,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const panelSubtitle = document.getElementById('panel-subtitle');
     const panelDesc = document.getElementById('panel-desc');
     const panelOverline = document.getElementById('panel-overline');
+
+    // Add Timeline Indicator (Desktop)
+    const timelineIndicator = document.createElement('div');
+    timelineIndicator.id = 'timeline-indicator';
+    // Always append, manage visibility via CSS/JS
+    timelineContainer.prepend(timelineIndicator);
 
     let markerLayer = L.layerGroup().addTo(map);
     let currentEra = Object.keys(historyData)[0];
@@ -92,32 +101,44 @@ document.addEventListener('DOMContentLoaded', function () {
         iconAnchor: [40, 40]
     });
 
-    // Map flyTo with layout awareness
+    // Map flyTo with layout awareness (Ultrathink)
     const flyToLocation = (coords) => {
         // Desktop breakpoint should match CSS (1024px)
         const isDesktop = window.innerWidth > 1024;
-        const targetZoom = 7.5; // Slightly wider context
+        const targetZoom = isDesktop ? 7.5 : 6.5;
 
         let options = {
             animate: true,
-            duration: 1.8, // Slower, more cinematic fly
+            duration: 2.0, // Slow, cinematic fly
             easeLinearity: 0.1
         };
 
         if (isDesktop) {
-            // Offset for right panel (520px width + 32px margin)
+            // Offset for right panel (540px width + 40px margin)
             // We shift the center point to the left to balance the layout
-            options.paddingBottomRight = [550, 0];
+            // Formula: (PanelWidth + Margin) / 2
+            options.paddingBottomRight = [580, 0];
         } else {
             // Offset for bottom sheet (dynamic based on viewport)
-            // We shift the center point up to avoid being covered
-            options.paddingBottomRight = [0, window.innerHeight * 0.5];
+            // We shift the center point up significantly to be in the visible area above the sheet
+            options.paddingBottomRight = [0, window.innerHeight * 0.6];
         }
 
         map.flyTo(coords, targetZoom, options);
     };
 
-    // --- Core Logic ---
+    // --- Interactive Logic ---
+
+    // Timeline Indicator Logic
+    const updateTimelineIndicator = (activeBtn) => {
+        if (!timelineIndicator || window.innerWidth <= 1024) return;
+
+        const rect = activeBtn.getBoundingClientRect();
+        const parentRect = timelineContainer.getBoundingClientRect();
+
+        timelineIndicator.style.width = `${rect.width}px`;
+        timelineIndicator.style.transform = `translateX(${rect.left - parentRect.left}px)`;
+    };
 
     const displayEra = (eraKey) => {
         // Clear pending marker animations
@@ -128,11 +149,11 @@ document.addEventListener('DOMContentLoaded', function () {
         markerLayer.eachLayer(marker => {
             const el = marker.getElement();
             if (el) {
-                el.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                el.style.transition = 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.5, 0, 0.75, 0)';
                 el.style.opacity = '0';
                 const children = el.querySelectorAll('div');
                 children.forEach(c => {
-                    c.style.transition = 'transform 0.3s ease';
+                    c.style.transition = 'transform 0.4s ease';
                     c.style.transform = 'translate(-50%, -50%) scale(0)';
                 });
             }
@@ -144,8 +165,8 @@ document.addEventListener('DOMContentLoaded', function () {
             btn.classList.toggle('active', isActive);
             if (isActive) {
                 btn.setAttribute('aria-current', 'time');
-                // Smooth center scroll
                 btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                updateTimelineIndicator(btn);
             } else {
                 btn.removeAttribute('aria-current');
             }
@@ -157,23 +178,16 @@ document.addEventListener('DOMContentLoaded', function () {
             const eraData = historyData[eraKey];
             if (!eraData) return;
 
-            // Fit bounds to all markers in the era if possible, or fly to the first one?
-            // Let's fly to the general area of the era's capital (first item) or bounds.
-            if (eraData.locations.length > 0) {
-                 // flyToLocation(eraData.locations[0].coords); // Optional: Auto-fly to capital
-            }
-
             eraData.locations.forEach((loc, index) => {
                 const timeoutId = setTimeout(() => {
                     const marker = L.marker(loc.coords, {
                         icon: createCustomIcon(),
                         alt: loc.name,
                         title: loc.name,
-                        keyboard: true // Enable keyboard nav for markers
+                        keyboard: true
                     });
 
                     marker.on('click', () => {
-                        // if (isMapAnimating) return; // Allow interrupting
                         showInfoPanel(loc, eraData.name);
                     });
 
@@ -186,48 +200,51 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     markerLayer.addLayer(marker);
 
-                    // Entry Animation
+                    // Entry Animation (Staggered Pop)
                     const el = marker.getElement();
                     if (el) {
                         el.style.opacity = '0';
                         const children = el.querySelectorAll('div');
                         children.forEach(c => {
                              c.style.transform = 'translate(-50%, -50%) scale(0)';
-                             c.style.transition = 'transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                             c.style.transition = 'transform 1.2s cubic-bezier(0.19, 1, 0.22, 1)'; // Elastic pop
                         });
 
                         requestAnimationFrame(() => {
                             el.style.opacity = '1';
-                            el.style.transition = 'opacity 0.5s ease';
+                            el.style.transition = 'opacity 0.6s ease';
                             children.forEach(c => {
                                 c.style.transform = 'translate(-50%, -50%) scale(1)';
                             });
                         });
                     }
-                }, index * 150); // Staggered entry
+                }, index * 200); // 200ms stagger
                 markerTimeouts.push(timeoutId);
             });
 
-        }, 300);
+        }, 400);
 
-        // Don't hide panel automatically if we are just switching eras,
-        // unless the user wants that. Let's hide it to keep it clean.
         hideInfoPanel();
     };
 
     const showInfoPanel = (location, eraName) => {
         const safeImage = isValidHttpUrl(location.image) ? location.image : '';
 
-        // Blur-up / Loading State
+        // Reset state for entry animation
         panelImg.style.transition = 'none';
         panelImg.style.opacity = '0';
         panelImg.style.transform = 'scale(1.1)';
 
+        // Hide text elements initially for staggered reveal
+        const textElements = document.querySelector('.panel-text');
+        textElements.style.opacity = '0';
+        textElements.style.transform = 'translateY(20px)';
+
         panelImg.onload = () => {
-            // Reveal animation
+            // Image Reveal
             requestAnimationFrame(() => {
-                panelImg.style.transition = 'opacity 0.8s ease, transform 1.2s cubic-bezier(0.2, 1, 0.3, 1)';
-                panelImg.style.opacity = '0.8'; // Slight transparency for mood
+                panelImg.style.transition = 'opacity 1s ease, transform 1.5s cubic-bezier(0.2, 1, 0.3, 1)';
+                panelImg.style.opacity = '0.8';
                 panelImg.style.transform = 'scale(1)';
             });
         };
@@ -239,7 +256,6 @@ document.addEventListener('DOMContentLoaded', function () {
         panelSubtitle.textContent = sanitizeText(location.subtitle);
         panelDesc.textContent = sanitizeText(location.description);
 
-        // Update contextual overline
         if (panelOverline) {
             panelOverline.textContent = eraName || "Historical Site";
         }
@@ -247,8 +263,12 @@ document.addEventListener('DOMContentLoaded', function () {
         infoPanel.classList.add('visible');
         infoPanel.setAttribute('aria-hidden', 'false');
 
-        // Focus management for accessibility
-        // setTimeout(() => closePanelBtn.focus(), 100);
+        // Text Stagger Reveal
+        setTimeout(() => {
+            textElements.style.transition = 'all 0.8s cubic-bezier(0.2, 1, 0.3, 1)';
+            textElements.style.opacity = '1';
+            textElements.style.transform = 'translateY(0)';
+        }, 300);
 
         isMapAnimating = true;
         flyToLocation(location.coords);
@@ -257,18 +277,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const hideInfoPanel = () => {
         infoPanel.classList.remove('visible');
         infoPanel.setAttribute('aria-hidden', 'true');
-        // Return focus to map or timeline?
     };
 
     // --- Init Listeners ---
 
     const eraKeys = Object.keys(historyData);
-    eraKeys.forEach(eraKey => {
+    eraKeys.forEach((eraKey, index) => {
         const button = document.createElement('button');
         button.className = 'era-button';
         button.textContent = historyData[eraKey].name;
         button.dataset.era = eraKey;
         button.setAttribute('role', 'tab');
+
+        // Set first button active initially for indicator calculation
+        if (index === 0) button.classList.add('active');
 
         button.addEventListener('click', () => {
             currentEra = eraKey;
@@ -300,15 +322,40 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Close panel when clicking on map background
     map.on('click', (e) => {
         hideInfoPanel();
     });
 
-    map.on('moveend', () => {
-        isMapAnimating = false;
-    });
+    // Parallax Effect for Panel (Desktop Ultrathink)
+    const handleParallax = (e) => {
+        if (window.innerWidth <= 1024 || !infoPanel.classList.contains('visible')) {
+            // Reset transform if not applicable
+            if (infoPanel.classList.contains('visible')) {
+               infoPanel.style.transform = 'translate(0, 0)';
+            }
+            return;
+        }
+
+        const x = (e.clientX / window.innerWidth - 0.5) * 2; // -1 to 1
+        const y = (e.clientY / window.innerHeight - 0.5) * 2; // -1 to 1
+
+        // Subtle tilt
+        infoPanel.style.transform = `perspective(1000px) rotateY(${x * -2}deg) rotateX(${y * 2}deg)`;
+    };
+
+    document.addEventListener('mousemove', handleParallax);
 
     // Start
-    displayEra(currentEra);
+    // Initial timeline indicator set
+    setTimeout(() => {
+         const firstBtn = document.querySelector('.era-button');
+         if(firstBtn) updateTimelineIndicator(firstBtn);
+         displayEra(currentEra);
+    }, 100);
+
+    // Resize listener
+    window.addEventListener('resize', () => {
+         const activeBtn = document.querySelector('.era-button.active');
+         if(activeBtn) updateTimelineIndicator(activeBtn);
+    });
 });
