@@ -183,8 +183,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     const marker = L.marker(loc.coords, {
                         icon: createCustomIcon(),
                         alt: loc.name,
-                        title: loc.name,
                         keyboard: true
+                    });
+
+                    // Custom styled tooltip
+                    marker.bindTooltip(loc.name, {
+                        direction: 'top',
+                        offset: [0, -40],
+                        className: 'custom-tooltip',
+                        opacity: 1
                     });
 
                     marker.on('click', () => {
