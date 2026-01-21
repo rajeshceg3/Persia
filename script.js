@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const map = L.map('map', {
         center: [32.4279, 53.6880],
-        zoom: 5,
+        zoom: 3, // Cinematic Start (World View)
         zoomControl: false,
         attributionControl: false,
         zoomSnap: 0.05, // Ultra-smooth zooming
@@ -77,6 +77,66 @@ document.addEventListener('DOMContentLoaded', function () {
     let markerTimeouts = [];
 
     // --- Helpers ---
+
+    class TouchController {
+        constructor(element, onDismiss) {
+            this.element = element;
+            this.onDismiss = onDismiss;
+            this.startY = 0;
+            this.currentY = 0;
+            this.dragging = false;
+
+            this.init();
+        }
+
+        init() {
+            this.element.addEventListener('touchstart', (e) => this.start(e), { passive: true });
+            this.element.addEventListener('touchmove', (e) => this.move(e), { passive: false });
+            this.element.addEventListener('touchend', () => this.end());
+        }
+
+        start(e) {
+            if (!this.element.classList.contains('visible') || window.innerWidth > 1024) return;
+            // Allow drag if hitting handle or header area
+            const isHandle = e.target.closest('.panel-handle-mobile') || e.target.closest('.panel-text');
+            const content = this.element.querySelector('.panel-content');
+
+            // If scrolling content, only allow drag if at top and pulling down
+            if (content && content.scrollTop > 0 && !e.target.closest('.panel-handle-mobile')) return;
+
+            this.startY = e.touches[0].clientY;
+            this.currentY = this.startY; // Initialize to prevent jumps on tap
+            this.dragging = true;
+            this.element.style.transition = 'none';
+        }
+
+        move(e) {
+            if (!this.dragging) return;
+            this.currentY = e.touches[0].clientY;
+            const delta = this.currentY - this.startY;
+
+            if (delta > 0) {
+                 if (e.cancelable) e.preventDefault();
+                 this.element.style.transform = `translateY(${delta}px)`;
+            }
+        }
+
+        end() {
+            if (!this.dragging) return;
+            this.dragging = false;
+            const delta = this.currentY - this.startY;
+
+            this.element.style.transition = 'transform 0.5s cubic-bezier(0.19, 1, 0.22, 1)';
+
+            if (delta > 150) {
+                this.onDismiss();
+                // Reset transform after it closes (handled by CSS class toggle but we ensure clean state)
+                setTimeout(() => { this.element.style.transform = ''; }, 500);
+            } else {
+                this.element.style.transform = 'translateY(0)';
+            }
+        }
+    }
 
     const sanitizeText = (text) => {
         const temp = document.createElement('div');
@@ -235,6 +295,8 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     const showInfoPanel = (location, eraName) => {
+        if (navigator.vibrate) navigator.vibrate(20);
+
         const safeImage = isValidHttpUrl(location.image) ? location.image : '';
 
         // Reset state for entry animation
@@ -300,9 +362,23 @@ document.addEventListener('DOMContentLoaded', function () {
         if (index === 0) button.classList.add('active');
 
         button.addEventListener('click', () => {
+            if (navigator.vibrate) navigator.vibrate(10);
             currentEra = eraKey;
             displayEra(eraKey);
         });
+
+        // Magnetic Effect
+        button.addEventListener('mousemove', (e) => {
+            if (window.innerWidth <= 1024) return;
+            const rect = button.getBoundingClientRect();
+            const x = e.clientX - rect.left - rect.width / 2;
+            const y = e.clientY - rect.top - rect.height / 2;
+            button.style.transform = `translate(${x * 0.3}px, ${y * 0.3}px)`;
+        });
+        button.addEventListener('mouseleave', () => {
+             button.style.transform = 'translate(0, 0)';
+        });
+
         timelineContainer.appendChild(button);
     });
 
@@ -352,12 +428,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.addEventListener('mousemove', handleParallax);
 
+    // Mobile Touch Controller
+    new TouchController(infoPanel, hideInfoPanel);
+
     // Start
     // Initial timeline indicator set
     setTimeout(() => {
          const firstBtn = document.querySelector('.era-button');
          if(firstBtn) updateTimelineIndicator(firstBtn);
          displayEra(currentEra);
+
+         // Cinematic Intro
+         setTimeout(() => {
+             const firstLoc = historyData[currentEra].locations[0];
+             if(firstLoc) flyToLocation(firstLoc.coords);
+         }, 800);
     }, 100);
 
     // Resize listener
