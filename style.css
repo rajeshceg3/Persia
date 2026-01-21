@@ -1,7 +1,7 @@
 :root {
     /* --- Palette: Royal Persian (Ultrathink Refined) --- */
-    --c-surface-solid: #080605; /* Deepest Void */
-    --c-surface-glass: rgba(8, 6, 5, 0.75); /* Translucent Obsidian */
+    --c-surface-solid: #050404; /* Deepest Void */
+    --c-surface-glass: rgba(5, 4, 4, 0.8); /* Translucent Obsidian */
     --c-surface-glass-border: rgba(255, 255, 255, 0.08);
 
     --c-text-primary: #E6DCCD; /* Antique Parchment */
@@ -11,7 +11,7 @@
     --c-accent: #D94E28; /* Persian Vermilion */
 
     /* Metallic Gold Gradients - Photorealistic */
-    --c-gold: #C5A059;
+    --c-gold: #D4AF37;
     --c-gold-bright: #F2DFA8;
     --c-gold-dim: #6B5226;
 
@@ -100,7 +100,7 @@ body::after {
 /* Cinematic Map Tiles - Obsidian & Gold Theme */
 .leaflet-tile-pane {
     /* Inverting a light map and tinting it gold/sepia */
-    filter: invert(100%) hue-rotate(180deg) brightness(0.6) contrast(1.4) sepia(0.4) saturate(0.6);
+    filter: invert(100%) hue-rotate(180deg) brightness(0.5) contrast(1.5) sepia(0.5) saturate(0.5);
 }
 
 .leaflet-control-attribution {
@@ -328,6 +328,22 @@ body::after {
 @keyframes shinePass {
     0%, 80% { left: -100%; }
     100% { left: 200%; }
+}
+
+@keyframes borderRotate { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+
+.border-light {
+    position: absolute; inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 12;
+    padding: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.5), transparent);
+    background-size: 200% 100%;
+    animation: borderRotate 3s infinite linear;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
 }
 
 #info-panel.visible {
@@ -668,7 +684,7 @@ body::after {
 
     .panel-handle-mobile {
         display: block;
-        width: 60px; height: 5px;
+        width: 60px; height: 6px;
         background: var(--c-gold);
         box-shadow: 0 0 10px var(--c-gold);
         border-radius: 100px;
@@ -676,6 +692,12 @@ body::after {
         position: absolute;
         left: 0; right: 0;
         z-index: 20;
+        transition: background-color 0.3s ease, transform 0.3s ease;
+    }
+
+    .panel-handle-mobile:active {
+        background-color: var(--c-gold-bright);
+        transform: scaleX(1.1);
     }
 
     .image-wrapper { height: 30vh; }
