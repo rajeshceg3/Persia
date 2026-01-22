@@ -84,6 +84,7 @@ document.addEventListener('DOMContentLoaded', function () {
             this.onDismiss = onDismiss;
             this.startY = 0;
             this.currentY = 0;
+            this.startTime = 0;
             this.dragging = false;
 
             this.init();
@@ -105,7 +106,8 @@ document.addEventListener('DOMContentLoaded', function () {
             if (content && content.scrollTop > 0 && !e.target.closest('.panel-handle-mobile')) return;
 
             this.startY = e.touches[0].clientY;
-            this.currentY = this.startY; // Initialize to prevent jumps on tap
+            this.currentY = this.startY;
+            this.startTime = Date.now();
             this.dragging = true;
             this.element.style.transition = 'none';
         }
@@ -118,6 +120,10 @@ document.addEventListener('DOMContentLoaded', function () {
             if (delta > 0) {
                  if (e.cancelable) e.preventDefault();
                  this.element.style.transform = `translateY(${delta}px)`;
+            } else {
+                 // Rubber band effect when pulling up
+                 const damped = delta * 0.3;
+                 this.element.style.transform = `translateY(${damped}px)`;
             }
         }
 
@@ -125,12 +131,14 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!this.dragging) return;
             this.dragging = false;
             const delta = this.currentY - this.startY;
+            const timeDelta = Date.now() - this.startTime;
+            const velocity = delta / timeDelta;
 
             this.element.style.transition = 'transform 0.5s cubic-bezier(0.19, 1, 0.22, 1)';
 
-            if (delta > 150) {
+            // Dismiss if dragged far enough OR flicked fast enough
+            if (delta > 150 || (velocity > 0.5 && delta > 50)) {
                 this.onDismiss();
-                // Reset transform after it closes (handled by CSS class toggle but we ensure clean state)
                 setTimeout(() => { this.element.style.transform = ''; }, 500);
             } else {
                 this.element.style.transform = 'translateY(0)';
@@ -177,11 +185,11 @@ document.addEventListener('DOMContentLoaded', function () {
             // Offset for right panel (540px width + 40px margin)
             // We shift the center point to the left to balance the layout
             // Formula: (PanelWidth + Margin) / 2
-            options.paddingBottomRight = [580, 0];
+            options.paddingBottomRight = [600, 0];
         } else {
             // Offset for bottom sheet (dynamic based on viewport)
             // We shift the center point up significantly to be in the visible area above the sheet
-            options.paddingBottomRight = [0, window.innerHeight * 0.6];
+            options.paddingBottomRight = [0, window.innerHeight * 0.55];
         }
 
         map.flyTo(coords, targetZoom, options);
@@ -285,7 +293,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             });
                         });
                     }
-                }, index * 200); // 200ms stagger
+                }, index * 150); // 150ms stagger (Snappier)
                 markerTimeouts.push(timeoutId);
             });
 
@@ -414,7 +422,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (window.innerWidth <= 1024 || !infoPanel.classList.contains('visible')) {
             // Reset transform if not applicable
             if (infoPanel.classList.contains('visible')) {
-               infoPanel.style.transform = 'translate(0, 0)';
+               // Ensure we reset to CSS default which includes perspective
+               infoPanel.style.transform = '';
             }
             return;
         }
@@ -422,8 +431,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const x = (e.clientX / window.innerWidth - 0.5) * 2; // -1 to 1
         const y = (e.clientY / window.innerHeight - 0.5) * 2; // -1 to 1
 
-        // Subtle tilt
-        infoPanel.style.transform = `perspective(1000px) rotateY(${x * -2}deg) rotateX(${y * 2}deg)`;
+        // Subtle tilt with scale preservation
+        infoPanel.style.transform = `perspective(1000px) rotateY(${x * -2}deg) rotateX(${y * 2}deg) scale(1)`;
     };
 
     document.addEventListener('mousemove', handleParallax);
