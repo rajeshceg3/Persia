@@ -195,6 +195,175 @@ document.addEventListener('DOMContentLoaded', function () {
         map.flyTo(coords, targetZoom, options);
     };
 
+    // --- Tour Logic ---
+    class TourManager {
+        constructor() {
+            this.steps = [];
+            this.currentStepIndex = -1;
+            this.isActive = false;
+            this.initData();
+            this.cacheDOM();
+            this.bindEvents();
+        }
+
+        initData() {
+            Object.keys(historyData).forEach(eraKey => {
+                const era = historyData[eraKey];
+                era.locations.forEach(loc => {
+                    this.steps.push({
+                        eraName: era.name,
+                        location: loc
+                    });
+                });
+            });
+        }
+
+        cacheDOM() {
+            this.overlay = document.getElementById('tour-overlay');
+            this.startBtn = document.getElementById('start-tour-btn');
+            this.prevBtn = document.getElementById('tour-prev');
+            this.nextBtn = document.getElementById('tour-next');
+            this.exitBtn = document.getElementById('tour-exit');
+
+            this.elEra = this.overlay.querySelector('.tour-era-label');
+            this.elProgress = this.overlay.querySelector('.tour-progress');
+            this.elTitle = this.overlay.querySelector('.tour-title');
+            this.elSubtitle = this.overlay.querySelector('.tour-subtitle');
+            this.elDesc = this.overlay.querySelector('.tour-desc');
+        }
+
+        bindEvents() {
+            this.startBtn.addEventListener('click', () => {
+                if (navigator.vibrate) navigator.vibrate(20);
+                this.start();
+            });
+            this.exitBtn.addEventListener('click', () => this.end());
+            this.prevBtn.addEventListener('click', () => this.prev());
+            this.nextBtn.addEventListener('click', () => this.next());
+
+            // Keyboard
+            document.addEventListener('keydown', (e) => {
+                if (!this.isActive) return;
+                if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault(); // Prevent scroll on Space
+                    this.next();
+                }
+                if (e.key === 'ArrowLeft') this.prev();
+                if (e.key === 'Escape') this.end();
+            });
+        }
+
+        start() {
+            this.isActive = true;
+            document.body.classList.add('tour-active');
+            this.overlay.classList.remove('hidden');
+            // Force reflow
+            void this.overlay.offsetWidth;
+            this.overlay.classList.add('visible');
+
+            // Close existing panel if open
+            hideInfoPanel();
+
+            if (this.currentStepIndex === -1) {
+                this.goToStep(0);
+            } else {
+                this.goToStep(this.currentStepIndex);
+            }
+        }
+
+        end() {
+            this.isActive = false;
+            document.body.classList.remove('tour-active');
+            this.overlay.classList.remove('visible');
+            setTimeout(() => {
+                this.overlay.classList.add('hidden');
+            }, 500);
+
+            // Reset to initial view or keep position?
+            // Let's keep position but maybe zoom out slightly to indicate "Free Roam"
+            if (map) map.zoomOut(0.5, { animate: true });
+        }
+
+        next() {
+            if (this.currentStepIndex < this.steps.length - 1) {
+                this.goToStep(this.currentStepIndex + 1);
+            } else {
+                this.end();
+            }
+        }
+
+        prev() {
+            if (this.currentStepIndex > 0) {
+                this.goToStep(this.currentStepIndex - 1);
+            }
+        }
+
+        goToStep(index) {
+            if (index < 0 || index >= this.steps.length) return;
+            this.currentStepIndex = index;
+            const step = this.steps[index];
+
+            // 1. Update Map
+            this.flyToTourLocation(step.location.coords);
+
+            // 2. Progressive Text Reveal
+            // Reset text states
+            [this.elTitle, this.elSubtitle, this.elDesc].forEach(el => {
+                el.classList.remove('reveal-visible');
+                el.classList.add('reveal-text');
+                el.style.opacity = '0';
+            });
+
+            // Update Content
+            this.elEra.textContent = step.eraName;
+            this.elProgress.textContent = `${index + 1} / ${this.steps.length}`;
+            this.elTitle.textContent = step.location.name;
+            this.elSubtitle.textContent = step.location.subtitle;
+            this.elDesc.textContent = step.location.description;
+
+            // Trigger Reveals
+            setTimeout(() => {
+                this.elTitle.classList.add('reveal-visible');
+                this.elTitle.style.opacity = '1';
+
+                setTimeout(() => {
+                    this.elSubtitle.classList.add('reveal-visible');
+                    this.elSubtitle.style.opacity = '1';
+
+                    setTimeout(() => {
+                        this.elDesc.classList.add('reveal-visible');
+                        this.elDesc.style.opacity = '1';
+                    }, 500);
+                }, 400);
+            }, 1000); // Cinematic delay
+
+            if (navigator.vibrate) navigator.vibrate(10);
+        }
+
+        flyToTourLocation(coords) {
+             const isDesktop = window.innerWidth > 1024;
+
+             let options = {
+                animate: true,
+                duration: 2.5,
+                easeLinearity: 0.1
+            };
+
+            if (isDesktop) {
+                // Shift center up by adding bottom padding to account for the card
+                options.paddingBottomRight = [0, 300];
+            } else {
+                // Shift center up significantly on mobile
+                options.paddingBottomRight = [0, window.innerHeight * 0.5];
+            }
+
+            map.flyTo(coords, isDesktop ? 7 : 6.2, options);
+        }
+    }
+
+    // Instantiate
+    const tourManager = new TourManager();
+
     // --- Interactive Logic ---
 
     // Timeline Indicator Logic
@@ -393,6 +562,9 @@ document.addEventListener('DOMContentLoaded', function () {
     closePanelBtn.addEventListener('click', hideInfoPanel);
 
     document.addEventListener('keydown', (e) => {
+        // Ignored if tour is active (handled by TourManager)
+        if (tourManager.isActive) return;
+
         if (infoPanel.classList.contains('visible') && e.key === "Escape") {
             hideInfoPanel();
             return;
