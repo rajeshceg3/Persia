@@ -45,16 +45,19 @@ document.addEventListener('DOMContentLoaded', function () {
         zoom: 3, // Cinematic Start (World View)
         zoomControl: false,
         attributionControl: false,
+        zoomAnimation: false, // Required for the MapLibre GL basemap bridge
         zoomSnap: 0.05, // Ultra-smooth zooming
         wheelPxPerZoomLevel: 120, // Smoother scroll zoom
         inertia: true,
         inertiaDeceleration: 3000
     });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-        opacity: 1
-    }).addTo(map);
+    // Warm paper basemap (worlds shared module): OpenFreeMap vector tiles,
+    // custom watercolor-wash style. Free public instance, no API key.
+    maplibregl.setWorkerUrl('vendor/maplibre/maplibre-gl-csp-worker.js');
+    L.maplibreGL({ style: window.WARM_MAP_STYLE }).addTo(map);
+    L.control.attribution({ position: 'bottomright', prefix: false }).addTo(map);
+    map.attributionControl.addAttribution('<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> <a href="https://www.openmaptiles.org/" target="_blank">&copy; OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>');
 
     const timelineContainer = document.getElementById('timeline');
     const infoPanel = document.getElementById('info-panel');

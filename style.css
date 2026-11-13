@@ -99,11 +99,8 @@ body::after {
     transition: filter 0.8s ease;
 }
 
-/* Cinematic Map Tiles - Obsidian & Gold Theme */
-.leaflet-tile-pane {
-    /* Inverting a light map and tinting it gold/sepia */
-    filter: invert(100%) hue-rotate(180deg) brightness(0.5) contrast(1.5) sepia(0.5) saturate(0.5);
-}
+/* The obsidian-and-gold invert filter was retired with the Carto tiles:
+   the warm-paper vector basemap carries its own palette natively. */
 
 .leaflet-control-attribution {
     background: transparent !important;
